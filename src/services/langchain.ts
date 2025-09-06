@@ -5,7 +5,7 @@ import wikipedia from "wikipedia";
 
 export const llm = new ChatGoogleGenerativeAI({
   apiKey: env.GOOGLE_API_KEY,
-  model: "gemini-pro",
+  model: "gemini-2.0-flash",
   temperature: 0.2,
   maxOutputTokens: 2048
 });

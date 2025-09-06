@@ -1,15 +1,11 @@
 import { llm, queryRefinementPrompt, contentAnalysisPrompt, summarizationPrompt, serpClient, wikiClient } from "./langchain";
-import { LLMChain } from "langchain/chains";
-import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
-
-const splitter = new RecursiveCharacterTextSplitter({ chunkSize: 4000, chunkOverlap: 200 });
 
 export class ResearchService {
   async analyzeAndRefineQuery(originalQuery: string): Promise<string[]> {
     try {
-      const chain = new LLMChain({ llm, prompt: queryRefinementPrompt });
-      const out = await chain.call({ original_query: originalQuery });
-      const text = (out as any).text || out.output || String(out);
+      const prompt = queryRefinementPrompt(originalQuery);
+      const response = await llm.invoke(prompt);
+      const text = String(response.content || response);
       try {
         const parsed = JSON.parse(text.trim());
         if (Array.isArray(parsed) && parsed.length) return parsed;
@@ -88,9 +84,9 @@ export class ResearchService {
     if (!combined) {
       return { processed_content: "", sources: [], confidence: 0 };
     }
-    const chain = new LLMChain({ llm, prompt: contentAnalysisPrompt });
-    // split if too long (we pass only a limited size to chain)
-    const processedText = (await chain.call({ content: combined.slice(0, 8000), topic })).text || "";
+    const prompt = contentAnalysisPrompt(combined.slice(0, 8000), topic);
+    const response = await llm.invoke(prompt);
+    const processedText = String(response.content || response);
     return {
       processed_content: processedText,
       sources: searchResults,
@@ -100,9 +96,9 @@ export class ResearchService {
 
   async generateReportStructure(processedData: any, topic: string) {
     try {
-      const chain = new LLMChain({ llm, prompt: summarizationPrompt });
-      const out = await chain.call({ topic, content: processedData.processed_content });
-      const text = (out as any).text || out.output || String(out);
+      const prompt = summarizationPrompt(topic, processedData.processed_content);
+      const response = await llm.invoke(prompt);
+      const text = String(response.content || response);
       try {
         const parsed = JSON.parse(text.trim());
         // ensure fields

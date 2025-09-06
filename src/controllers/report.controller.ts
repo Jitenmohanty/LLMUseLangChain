@@ -8,49 +8,53 @@ import { PDFService, ReportData } from "../services/pdfService";
 
 export default class ReportController {
   static async generate(req: Request, res: Response) {
-    try {
-      const { query, forceRefresh } = req.body;
-      const user = (req as any).user;
-      const cache = new CacheService();
+  try {
+    const { query, forceRefresh } = req.body;
+    const user = (req as any).user;
 
-      if (!forceRefresh) {
-        const cached = await cache.getCachedReport(query);
-        if (cached) return res.json(cached.data);
-      }
-
-      const research = new ResearchService();
-      const refined = await research.analyzeAndRefineQuery(query);
-      const fetched = await research.fetchInformation(refined);
-      const processed = await research.processAndSummarize(fetched, query);
-      const report = await research.generateReportStructure(processed, query);
-
-      const [dbReport] = await db
-        .insert(reports)
-        .values({
-          topic: query,
-          content: report,
-          confidence: report.confidence ?? 50,
-          user_id: user.id,
-        })
-        .returning()
-        .execute();
-
-      // cache
-      await cache.cacheReport(query, report);
-
-      res.json({
-        id: dbReport.id,
-        topic: query,
-        summary: report.summary,
-        key_points: report.key_points,
-        sources: report.sources,
-        confidence: report.confidence,
-        generated_at: dbReport.created_at,
-      });
-    } catch (err) {
-      console.error("generate report error:", err);
-      res.status(500).json({ error: (err as Error).message });
+    if (!user?.id) {
+      return res.status(401).json({ error: "Unauthorized: missing user" });
     }
+
+    const cache = new CacheService();
+
+    if (!forceRefresh) {
+      const cached = await cache.getCachedReport(query);
+      if (cached) return res.json(cached.data);
+    }
+
+    const research = new ResearchService();
+    const refined = await research.analyzeAndRefineQuery(query);
+    const fetched = await research.fetchInformation(refined);
+    const processed = await research.processAndSummarize(fetched, query);
+    const report = await research.generateReportStructure(processed, query);
+
+    const [dbReport] = await db
+      .insert(reports)
+      .values({
+        topic: query,
+        content: report,
+        confidence: report.confidence ?? 50,
+        user_id: user.id, // now works ✅
+      })
+      .returning()
+      .execute();
+
+    await cache.cacheReport(query, report);
+
+    res.json({
+      id: dbReport.id,
+      topic: query,
+      summary: report.summary,
+      key_points: report.key_points,
+      sources: report.sources,
+      confidence: report.confidence,
+      generated_at: dbReport.created_at,
+    });
+  } catch (err) {
+    console.error("generate report error:", err);
+    res.status(500).json({ error: (err as Error).message });
+  }
   }
 
   static async list(req: Request, res: Response) {
