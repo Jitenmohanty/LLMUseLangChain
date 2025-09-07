@@ -23,4 +23,18 @@ export default class AuthController {
       res.status(500).json({ error: (err as Error).message });
     }
   }
+
+  static async profile(req: Request, res: Response) {
+    try {
+      const userId = req.user?.id   // 👈 matches middleware
+      if (!userId) return res.status(401).json({ error: "Unauthorized" })
+
+      const user = await AuthService.getProfile(userId)
+      res.json(user)
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message })
+    }
+  }
+
+
 }

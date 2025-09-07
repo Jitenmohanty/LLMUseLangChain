@@ -23,6 +23,18 @@ export class AuthService {
     return ok ? user : null;
   }
 
+  static async getProfile(userId: number) {
+  const [user] = await db.select().from(users).where(eq(users.id, userId))
+  if (!user) throw new Error("User not found")
+  return {
+    id: user.id,
+    email: user.email,
+    username: user.username,
+    created_at: user.created_at,
+  }
+}
+
+
   static createTokenForUser(user: any) {
     return createAccessToken({ sub: user.email, userId: user.id });
   }
